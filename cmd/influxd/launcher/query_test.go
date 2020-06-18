@@ -750,7 +750,13 @@ from(bucket: "%s")
 
 func TestLauncher_Query_PushDownWindowAggregateAndBareAggregate(t *testing.T) {
 	l := launcher.RunTestLauncherOrFail(t, ctx, nil,
-		"--feature-flags", "pushDownWindowAggregateCount=true,pushDownWindowAggregateSum=true")
+		"--feature-flags",
+		"pushDownWindowAggregateCount=true",
+		"--feature-flags",
+		"pushDownWindowAggregateSum=true",
+		"--feature-flags",
+		"pushDownWindowAggregateFirst=true",
+	)
 	l.SetupOrFail(t)
 	defer l.ShutdownOrFail(t, ctx)
 
@@ -795,6 +801,82 @@ m0,k=k0 f=5i 15000000000
 		op   string
 		res  string
 	}{
+		{
+			name: "window first",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:05Z, stop: 1970-01-01T00:00:20Z)
+	|> window(every: 3s)
+	|> first()
+`,
+			op: "readWindow(first)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:05Z,1970-01-01T00:00:06Z,1970-01-01T00:00:05Z,5,f,m0,k0
+,,1,1970-01-01T00:00:06Z,1970-01-01T00:00:09Z,1970-01-01T00:00:06Z,6,f,m0,k0
+,,2,1970-01-01T00:00:09Z,1970-01-01T00:00:12Z,1970-01-01T00:00:09Z,6,f,m0,k0
+,,3,1970-01-01T00:00:12Z,1970-01-01T00:00:15Z,1970-01-01T00:00:12Z,5,f,m0,k0
+,,4,1970-01-01T00:00:15Z,1970-01-01T00:00:18Z,1970-01-01T00:00:15Z,5,f,m0,k0
+`,
+		},
+		{
+			name: "bare first",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:05Z, stop: 1970-01-01T00:00:20Z)
+	|> first()
+`,
+			op: "readWindow(first)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:05Z,1970-01-01T00:00:20Z,1970-01-01T00:00:05Z,5,f,m0,k0
+`,
+		},
+		{
+			name: "window empty first",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:00Z, stop: 1970-01-01T00:00:02Z)
+	|> window(every: 500ms, createEmpty: true)
+	|> first()
+`,
+			op: "readWindow(first)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:00Z,1970-01-01T00:00:00.5Z,1970-01-01T00:00:00Z,0,f,m0,k0
+,,1,1970-01-01T00:00:00.5Z,1970-01-01T00:00:01Z,,,f,m0,k0
+,,2,1970-01-01T00:00:01Z,1970-01-01T00:00:01.5Z,1970-01-01T00:00:01Z,1,f,m0,k0
+,,3,1970-01-01T00:00:01.5Z,1970-01-01T00:00:02Z,,,f,m0,k0
+`,
+		},
+		{
+			name: "window aggregate first",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:00Z, stop: 1970-01-01T00:00:02Z)
+	|> aggregateWindow(every: 500ms, fn: first)
+`,
+			op: "readWindow(first)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:00Z,1970-01-01T00:00:02Z,1970-01-01T00:00:00.5Z,0,f,m0,k0
+,,0,1970-01-01T00:00:00Z,1970-01-01T00:00:02Z,1970-01-01T00:00:01Z,,f,m0,k0
+,,0,1970-01-01T00:00:00Z,1970-01-01T00:00:02Z,1970-01-01T00:00:01.5Z,1,f,m0,k0
+,,0,1970-01-01T00:00:00Z,1970-01-01T00:00:02Z,1970-01-01T00:00:02Z,,f,m0,k0
+`,
+		},
 		{
 			name: "count",
 			q: `
@@ -873,6 +955,7 @@ from(bucket: v.bucket)
 
 			prelude := fmt.Sprintf("v = {bucket: \"%s\", timeRangeStart: 1970-01-01T00:00:00Z, timeRangeStop: 1970-01-01T00:00:15Z}", l.Bucket.Name)
 			queryStr := prelude + "\n" + tt.q
+
 			res := l.MustExecuteQuery(queryStr)
 			defer res.Done()
 			got := flux.NewSliceResultIterator(res.Results)
