@@ -160,3 +160,17 @@
   default: false
   contact: Brett Buddin
   lifetime: temporary
+
+- name: Checks Write Disable URMs
+  description: Disable CheckService write paths from using URMs in order to function properly
+  key: checksWriteDisableURMs
+  default: false
+  contact: Compute Team
+  lifetime: temporary
+
+- name: Checks Read Disable URMs
+  description: Disable CheckService read paths from using URMs in order to function properly
+  key: checksReadDisableURMs
+  default: false
+  contact: Compute Team
+  lifetime: temporary
