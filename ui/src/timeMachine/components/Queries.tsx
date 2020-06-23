@@ -22,7 +22,8 @@ import {
 
 // Actions
 import {setAutoRefresh} from 'src/timeMachine/actions'
-import {setTimeRange, setTimeRangeFromVEO} from 'src/timeMachine/actions'
+import {setTimeRange} from 'src/timeMachine/actions'
+import {enableUpdatedTimeRangeInVEO} from 'src/shared/actions/app'
 
 // Utils
 import {
@@ -52,7 +53,7 @@ interface StateProps {
 
 interface DispatchProps {
   onSetTimeRange: typeof setTimeRange
-  onSetTimeRangeFromVEO: typeof setTimeRangeFromVEO
+  onEnableUpdatedTimeRangeInVEO: typeof enableUpdatedTimeRangeInVEO
   onSetAutoRefresh: typeof setAutoRefresh
 }
 
@@ -97,16 +98,15 @@ class TimeMachineQueries extends PureComponent<Props> {
     const {
       autoRefresh,
       inVEOMode,
+      onEnableUpdatedTimeRangeInVEO,
       onSetAutoRefresh,
       onSetTimeRange,
-      onSetTimeRangeFromVEO,
     } = this.props
 
     if (inVEOMode) {
-      onSetTimeRangeFromVEO(timeRange)
-    } else {
-      onSetTimeRange(timeRange)
+      onEnableUpdatedTimeRangeInVEO()
     }
+    onSetTimeRange(timeRange)
 
     if (timeRange.type === 'custom') {
       onSetAutoRefresh({...autoRefresh, status: AutoRefreshStatus.Disabled})
@@ -153,7 +153,7 @@ const mstp = (state: AppState) => {
 
 const mdtp = {
   onSetTimeRange: setTimeRange,
-  onSetTimeRangeFromVEO: setTimeRangeFromVEO,
+  onEnableUpdatedTimeRangeInVEO: enableUpdatedTimeRangeInVEO,
   onSetAutoRefresh: setAutoRefresh,
 }
 
