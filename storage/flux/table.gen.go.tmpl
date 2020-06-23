@@ -368,7 +368,13 @@ func (t *{{.name}}WindowSelectorTable) startTimes(arr *cursors.{{.Name}}Array) *
 	start.Reserve(arr.Len())
 
 	for _, v := range arr.Timestamps {
-		windowStart := v - v % t.windowEvery
+		// modulo should produce non-negative remainder
+		remainder := v % t.windowEvery
+		if remainder < 0 {
+			remainder += t.windowEvery
+		}
+
+		windowStart := v - remainder
 		rangeStart  := int64(t.bounds.Start)
 
 		if windowStart < rangeStart {
@@ -385,7 +391,13 @@ func (t *{{.name}}WindowSelectorTable) stopTimes(arr *cursors.{{.Name}}Array) *a
 	stop.Reserve(arr.Len())
 
 	for _, v := range arr.Timestamps {
-		windowStop := v - v % t.windowEvery + t.windowEvery
+		// modulo should produce non-negative remainder
+		remainder := v % t.windowEvery
+		if remainder < 0 {
+			remainder += t.windowEvery
+		}
+
+		windowStop := v - remainder + t.windowEvery
 		rangeStop  := int64(t.bounds.Stop)
 
 		if windowStop > rangeStop {
@@ -425,8 +437,16 @@ func new{{.Name}}EmptyWindowSelectorTable(
 ) *{{.name}}EmptyWindowSelectorTable {
 	rangeStart := int64(bounds.Start)
 	rangeStop  := int64(bounds.Stop)
-	windowStart := rangeStart - rangeStart % windowEvery
+
+	// modulo should produce non-negative remainder
+	remainder := rangeStart % windowEvery
+	if remainder < 0 {
+		remainder += windowEvery
+	}
+
+	windowStart := rangeStart - remainder
 	windowStop  := windowStart + windowEvery
+
 	t := &{{.name}}EmptyWindowSelectorTable{
 		{{.name}}Table: {{.name}}Table{
 			table: newTable(done, bounds, key, cols, defs, cache, alloc),
