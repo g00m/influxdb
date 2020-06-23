@@ -756,6 +756,8 @@ func TestLauncher_Query_PushDownWindowAggregateAndBareAggregate(t *testing.T) {
 		"pushDownWindowAggregateSum=true",
 		"--feature-flags",
 		"pushDownWindowAggregateFirst=true",
+		"--feature-flags",
+		"pushDownWindowAggregateLast=true",
 	)
 	l.SetupOrFail(t)
 	defer l.ShutdownOrFail(t, ctx)
@@ -801,6 +803,82 @@ m0,k=k0 f=5i 15000000000
 		op   string
 		res  string
 	}{
+		{
+			name: "window last",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:05Z, stop: 1970-01-01T00:00:20Z)
+	|> window(every: 3s)
+	|> last()
+`,
+			op: "readWindow(last)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:05Z,1970-01-01T00:00:06Z,1970-01-01T00:00:05Z,5,f,m0,k0
+,,1,1970-01-01T00:00:06Z,1970-01-01T00:00:09Z,1970-01-01T00:00:08Z,0,f,m0,k0
+,,2,1970-01-01T00:00:09Z,1970-01-01T00:00:12Z,1970-01-01T00:00:11Z,7,f,m0,k0
+,,3,1970-01-01T00:00:12Z,1970-01-01T00:00:15Z,1970-01-01T00:00:14Z,9,f,m0,k0
+,,4,1970-01-01T00:00:15Z,1970-01-01T00:00:18Z,1970-01-01T00:00:15Z,5,f,m0,k0
+`,
+		},
+		{
+			name: "bare last",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1970-01-01T00:00:05Z, stop: 1970-01-01T00:00:20Z)
+	|> last()
+`,
+			op: "readWindow(last)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1970-01-01T00:00:05Z,1970-01-01T00:00:20Z,1970-01-01T00:00:15Z,5,f,m0,k0
+`,
+		},
+		{
+			name: "window empty last",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1969-12-31T23:00:00Z, stop: 1970-01-01T02:00:00Z)
+	|> window(every: 1h, createEmpty: true)
+	|> last()
+`,
+			op: "readWindow(last)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1969-12-31T23:00:00Z,1970-01-01T00:00:00Z,,,f,m0,k0
+,,1,1970-01-01T00:00:00Z,1970-01-01T01:00:00Z,1970-01-01T00:00:15Z,5,f,m0,k0
+,,2,1970-01-01T01:00:00Z,1970-01-01T02:00:00Z,,,f,m0,k0
+`,
+		},
+		{
+			name: "window aggregate last",
+			q: `
+from(bucket: v.bucket)
+	|> range(start: 1969-12-31T23:59:59Z, stop: 1970-01-01T00:00:33Z)
+	|> aggregateWindow(every: 10s, fn: last)
+`,
+			op: "readWindow(last)",
+			res: `
+#datatype,string,long,dateTime:RFC3339,dateTime:RFC3339,dateTime:RFC3339,long,string,string,string
+#group,false,false,true,true,false,false,true,true,true
+#default,_result,,,,,,,,
+,result,table,_start,_stop,_time,_value,_field,_measurement,k
+,,0,1969-12-31T23:59:59Z,1970-01-01T00:00:33Z,1970-01-01T00:00:00Z,,f,m0,k0
+,,0,1969-12-31T23:59:59Z,1970-01-01T00:00:33Z,1970-01-01T00:00:10Z,6,f,m0,k0
+,,0,1969-12-31T23:59:59Z,1970-01-01T00:00:33Z,1970-01-01T00:00:20Z,5,f,m0,k0
+,,0,1969-12-31T23:59:59Z,1970-01-01T00:00:33Z,1970-01-01T00:00:30Z,,f,m0,k0
+,,0,1969-12-31T23:59:59Z,1970-01-01T00:00:33Z,1970-01-01T00:00:33Z,,f,m0,k0
+`,
+		},
 		{
 			name: "window first",
 			q: `
