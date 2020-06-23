@@ -10,7 +10,10 @@ import TimeMachine from 'src/timeMachine/components/TimeMachine'
 import VEOHeader from 'src/dashboards/components/VEOHeader'
 
 // Actions
-import {disableVEOMode} from 'src/shared/actions/app'
+import {
+  disableVEOMode,
+  disableUpdatedTimeRangeInVEO,
+} from 'src/shared/actions/app'
 import {setName} from 'src/timeMachine/actions'
 import {saveVEOView} from 'src/dashboards/actions/thunks'
 import {getViewAndResultsForVEO} from 'src/views/actions/thunks'
@@ -23,6 +26,7 @@ import {AppState, RemoteDataState, QueryView, TimeMachineID} from 'src/types'
 
 interface DispatchProps {
   getViewAndResultsForVEO: typeof getViewAndResultsForVEO
+  onDisableUpdatedTimeRangeInVEO: typeof disableUpdatedTimeRangeInVEO
   onDisableVEOMode: typeof disableVEOMode
   onSetName: typeof setName
   onSaveView: typeof saveVEOView
@@ -39,6 +43,7 @@ const EditViewVEO: FunctionComponent<Props> = ({
   activeTimeMachineID,
   getViewAndResultsForVEO,
   onDisableVEOMode,
+  onDisableUpdatedTimeRangeInVEO,
   onSaveView,
   onSetName,
   params: {orgID, cellID, dashboardID},
@@ -54,6 +59,7 @@ const EditViewVEO: FunctionComponent<Props> = ({
 
   const handleClose = () => {
     onDisableVEOMode()
+    onDisableUpdatedTimeRangeInVEO()
     router.push(`/orgs/${orgID}/dashboards/${dashboardID}`)
   }
 
@@ -104,6 +110,7 @@ const mstp = (state: AppState): StateProps => {
 const mdtp: DispatchProps = {
   getViewAndResultsForVEO: getViewAndResultsForVEO,
   onDisableVEOMode: disableVEOMode,
+  onDisableUpdatedTimeRangeInVEO: disableUpdatedTimeRangeInVEO,
   onSetName: setName,
   onSaveView: saveVEOView,
 }
