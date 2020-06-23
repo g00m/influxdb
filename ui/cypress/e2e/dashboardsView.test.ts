@@ -271,6 +271,15 @@ describe('Dashboard', () => {
             .pipe(getSelectedVariable(dashboard.id, 0))
             .should('equal', 'c1')
 
+          //testing variable controls
+          cy.getByTestID('variable-dropdown')
+            .eq(0)
+            .should('contain', 'c1')
+          cy.getByTestID('variables--button').click()
+          cy.getByTestID('variable-dropdown').should('not.exist')
+          cy.getByTestID('variables--button').click()
+          cy.getByTestID('variable-dropdown').should('exist')
+
           // sanity check on the url before beginning
           cy.location('search').should('eq', '?lower=now%28%29%20-%201h')
 
